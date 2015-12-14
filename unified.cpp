@@ -45,7 +45,6 @@ private:
 
     void diff_word (std::vector<diff_type> const& change_coarse,
         std::vector<int> const& delete_line, std::vector<int> const& insert_line);
-    void split_word (token_type const& line, text_type& a);
     void print_replace (std::vector<diff_type>const& change);
     void print_replace_delete (std::vector<diff_type>const& change);
     void print_replace_insert (std::vector<diff_type>const& change);
