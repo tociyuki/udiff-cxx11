@@ -28,5 +28,11 @@ token.o : token.cpp diff.hpp getucdscript.hpp
 unified.o : unified.cpp unified.hpp diff.hpp
 	$(CXX) $(CXXFLAGS) -c -o unified.o unified.cpp
 
+diff-test : diff-test.o diff.o token.o getucdscript.o
+	$(CXX) -o diff-test diff-test.o diff.o token.o getucdscript.o
+
+diff-test.o : diff-test.cpp
+	$(CXX) $(CXXFLAGS) -c -o diff-test.o diff-test.cpp
+
 clean :
-	rm -fr $(PROGRAM) $(OBJECTS)
+	rm -fr $(PROGRAM) diff-test $(OBJECTS) diff-test.o
