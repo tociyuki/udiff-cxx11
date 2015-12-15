@@ -13,35 +13,15 @@ struct linemark_type {
 
 // unified output
 struct unified_impl {
-    // file names
-    std::string oldfile;
-    std::string newfile;
+    unified_type& face;
 
-    // context width (default 3)
-    int context;  // assert (context >= 0);
-
-    // output decoration
-    std::string sfile;
-    std::string efile;
-    std::string sstuff;
-    std::string estuff;
-    std::string sdel;
-    std::string edel;
-    std::string sins;
-    std::string eins;
-
-    unified_impl (std::string const& a, std::string const& b, int const c)
-        : oldfile (a), newfile (b), context (c),
-          sfile (), efile (), sstuff (), estuff (),
-          sdel (), edel (), sins (), eins () {}
+    unified_impl (unified_type& a) : face (a) {}
 
     bool mark_lines (std::vector<diff_type> const& change, std::vector<linemark_type>& unify);
     void print_allhunk (std::vector<diff_type> const& change, std::vector<linemark_type> const& unify);
 private:
-    void
-    print_hunk_stuff (std::vector<diff_type> const& change, std::vector<linemark_type> const& unify, int const hunk_begin, int const hunk_end);
-    void
-    print_hunk_content (std::vector<diff_type> const& change, int const hunk_begin, int const hunk_end);
+    void print_hunk_stuff (std::vector<diff_type> const& change, std::vector<linemark_type> const& unify, int const hunk_begin, int const hunk_end);
+    void print_hunk_content (std::vector<diff_type> const& change, int const hunk_begin, int const hunk_end);
 
     void diff_word (std::vector<diff_type> const& change_coarse,
         std::vector<int> const& delete_line, std::vector<int> const& insert_line);
@@ -89,15 +69,7 @@ void
 unified_type::print (std::vector<diff_type> const& change)
 {
     std::vector<linemark_type> linemark (change.size ());
-    unified_impl impl (oldfile, newfile, context);
-    impl.sfile = sfile;
-    impl.efile = efile;
-    impl.sstuff = sstuff;
-    impl.estuff = estuff;
-    impl.sdel = sdel;
-    impl.edel = edel;
-    impl.sins = sins;
-    impl.eins = eins;
+    unified_impl impl (*this);
     if (impl.mark_lines (change, linemark))
         impl.print_allhunk (change, linemark);
 }
@@ -117,7 +89,7 @@ unified_impl::mark_lines (std::vector<diff_type> const& change, std::vector<line
         linemark[i].bp = b0;
         if (EQUAL != change[i].operation) {
             changed = true;
-            for (int j = i - context; j <= i + context; ++j) {
+            for (int j = i - face.context; j <= i + face.context; ++j) {
                 if (0 <= j && j < linemark.size ())
                     linemark[j].mark = true;
             }
@@ -130,8 +102,8 @@ unified_impl::mark_lines (std::vector<diff_type> const& change, std::vector<line
 void
 unified_impl::print_allhunk (std::vector<diff_type> const& change, std::vector<linemark_type> const& linemark)
 {
-    std::cout << sfile << "--- " << oldfile << efile << std::endl;
-    std::cout << sfile << "+++ " << newfile << efile << std::endl;
+    std::cout << face.sfile << "--- " << face.oldfile << face.efile << std::endl;
+    std::cout << face.sfile << "+++ " << face.newfile << face.efile << std::endl;
     int hunk_begin = 0;
     bool hunk = false;
     for (int k = 0; k <= linemark.size (); ++k) {
@@ -165,8 +137,8 @@ unified_impl::print_hunk_stuff (std::vector<diff_type> const& change, std::vecto
             b1 = linemark[i].bp;
         }
     }
-    std::cout << sstuff << "@@ -" << a0 << "," << a1 - a0 + 1
-        << " +" << b0 << "," << b1 - b0 + 1 << " @@" << estuff << std::endl;
+    std::cout << face.sstuff << "@@ -" << a0 << "," << a1 - a0 + 1
+        << " +" << b0 << "," << b1 - b0 + 1 << " @@" << face.estuff << std::endl;
 }
 
 // print single hunk content
@@ -186,10 +158,10 @@ unified_impl::print_hunk_content (std::vector<diff_type> const& change, int cons
                 diff_word (change, delete_line, insert_line);
             else if (! delete_line.empty ())
                 for (int i : delete_line)
-                    std::cout << sdel << "-" << change[i].text << edel << std::endl;
+                    std::cout << face.sdel << "-" << change[i].text << face.edel << std::endl;
             else if (! insert_line.empty ())
                 for (int i : insert_line)
-                    std::cout << sins << "+" << change[i].text << eins << std::endl;
+                    std::cout << face.sins << "+" << change[i].text << face.eins << std::endl;
             delete_line.clear ();
             insert_line.clear ();
             if (j < hunk_end)
@@ -238,7 +210,7 @@ unified_impl::print_replace_delete (std::vector<diff_type>const& change)
     bool line_top = true;
     for (int j = 0; j < change.size (); ++j) {
         if (line_top) {
-            std::cout << sdel << "-" << edel;
+            std::cout << face.sdel << "-" << face.edel;
             line_top = false;
         }
         if (INSERT != change[j].operation) {
@@ -247,7 +219,7 @@ unified_impl::print_replace_delete (std::vector<diff_type>const& change)
                 line_top = true;
             }
             else if (DELETE == change[j].operation) {
-                std::cout << sdel << change[j].text << edel;
+                std::cout << face.sdel << change[j].text << face.edel;
             }
             else if (EQUAL == change[j].operation) {
                 std::cout << change[j].text;
@@ -263,7 +235,7 @@ unified_impl::print_replace_insert (std::vector<diff_type>const& change)
     bool line_top = true;
     for (int j = 0; j < change.size (); ++j) {
         if (line_top) {
-            std::cout << sins << "+" << eins;
+            std::cout << face.sins << "+" << face.eins;
             line_top = false;
         }
         if (DELETE != change[j].operation) {
@@ -275,7 +247,7 @@ unified_impl::print_replace_insert (std::vector<diff_type>const& change)
                 std::cout << change[j].text;
             }
             else if (INSERT == change[j].operation) {
-                std::cout << sins << change[j].text << eins;
+                std::cout << face.sins << change[j].text << face.eins;
             }
         }
     }
