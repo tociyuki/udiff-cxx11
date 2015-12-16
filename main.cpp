@@ -18,6 +18,7 @@ void print_help (std::string const& program)
         << std::endl
         << "options:" << std::endl
         << std::endl
+        << " -b, --ignore-space-change  trim end line spaces." << std::endl
         << "     --color    colored." << std::endl
         << "     --nocolor  no colored." << std::endl
         << " -u, -U NUM, --unified[=NUM]" << std::endl
@@ -40,9 +41,14 @@ main (int argc, char *argv[])
 {
     std::string progname (argv[0]);
     optlong_type arg (argc, argv);
+    bool opt_ignore_space_change = false;
     bool word_color = isatty (STDOUT_FILENO) != 0;
     int context = 3;
     while (arg.is_option ()) {
+        if (arg.getopt ("--ignore-space-chage", 'b')) {
+            opt_ignore_space_change = true;
+            continue;
+        }
         if (arg.getopt ("--color", '\0')) {
             word_color = true;
             continue;
@@ -73,6 +79,7 @@ main (int argc, char *argv[])
     }
 
     unified_type unified (arg.field[0], arg.field[1], context);
+    unified.opt_ignore_space_change = opt_ignore_space_change;
     if (word_color)
         unified.ansi_color ();
 
@@ -85,6 +92,10 @@ main (int argc, char *argv[])
     if (! slurp (unified.newfile, b)) {
         std::cerr << progname << ": cannot read '" << unified.newfile << "'." << std::endl;
         exit (EXIT_FAILURE);
+    }
+    if (unified.opt_ignore_space_change) {
+        unified.ignore_space_change (a);
+        unified.ignore_space_change (b);
     }
     std::vector<diff_type> change;
     diffwu_type diffwu;

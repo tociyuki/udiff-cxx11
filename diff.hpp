@@ -24,17 +24,19 @@ typedef std::vector<token_type> text_type;
 // unit of comparison for text is token_type.
 struct token_type {
     std::string text;
+    std::string cook;
     uint32_t hashval;
 
-    token_type () : text (), hashval (0) {}
-    token_type (std::string const& a, uint32_t b) : text (a), hashval (b) {}
+    token_type () : text (), cook (), hashval (0) {}
+    token_type (std::string const& a, uint32_t b) : text (a), cook (a), hashval (b) {}
+    void ignore_space_change ();
     void split_word (text_type& a);
     uint32_t murmurhash () const;
     uint32_t ord (int const i, int& u8skip) const;
 
     bool equal (token_type const& x) const
     {
-        return hashval == x.hashval && text == x.text;
+        return hashval == x.hashval && cook == x.cook;
     }
 };
 

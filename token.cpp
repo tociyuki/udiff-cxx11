@@ -3,6 +3,27 @@
 #include "diff.hpp"
 #include "getucdscript.hpp"
 
+// ignore space change from text to cook.
+// spaces at end of line are trimmed.
+// another spaces compare to be equal.
+void
+token_type::ignore_space_change ()
+{
+    cook.clear ();
+    bool space = false;
+    for (int i = 0; i < text.size (); ++i) {
+        if (' ' == text[i])
+            space = true;
+        else {
+            if (space)
+                cook.push_back (' ');
+            cook.push_back (text[i]);
+            space = false;
+        }
+    }
+    hashval = murmurhash ();
+}
+
 // split a line to a vector of word based tokens.
 // the line must be chomped the last '\n' character.
 // a sequence of spaces is also single token.
@@ -26,6 +47,7 @@ token_type::split_word (text_type& a)
         if (script != last_script && first < i) {
             a.emplace_back ();
             a.back ().text.assign (text.begin () + first, text.begin () + i);
+            a.back ().cook.assign (a.back ().text);
             a.back ().hashval = a.back ().murmurhash ();
             first = i;
         }
@@ -34,6 +56,7 @@ token_type::split_word (text_type& a)
     }
     a.emplace_back ();
     a.back ().text.assign ("\n");
+    a.back ().cook.assign (a.back ().text);
     a.back ().hashval = a.back ().murmurhash ();
 }
 
@@ -46,8 +69,8 @@ uint32_t
 token_type::murmurhash () const
 {
     static const uint32_t m = 0x5bd1e995UL;
-    std::string::const_iterator s = text.cbegin ();
-    uint32_t n = text.size ();
+    std::string::const_iterator s = cook.cbegin ();
+    uint32_t n = cook.size ();
     uint32_t h = n * m;
     for (; n >= 4; n -= 4, s += 4) {
         uint32_t const u

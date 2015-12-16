@@ -31,9 +31,8 @@ slurp_content (std::istream& in, text_type& text)
 {
     text.clear ();
     for (std::string str; std::getline (in, str); ) {
-        text.emplace_back ();
-        std::swap (text.back ().text, str);
-        text.back().hashval = text.back ().murmurhash ();
+        text.emplace_back (str, 0);
+        text.back ().hashval = text.back ().murmurhash ();
     }
     return ! text.empty ();
 }

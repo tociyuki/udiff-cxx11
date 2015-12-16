@@ -64,6 +64,13 @@ unified_type::ansi_color ()
     eins   = "\033[0m";
 }
 
+// ignore_space_change for each line
+void unified_type::ignore_space_change (text_type& a)
+{
+    for (int j = 0; j < a.size (); ++j)
+        a[j].ignore_space_change ();
+}
+
 // print change by unified style
 void
 unified_type::print (std::vector<diff_type> const& change)
