@@ -22,7 +22,7 @@ Algorithmica 1 (1986)
 VERSION
 ------
 
-0.01
+0.02
 
 INSTALL
 ------

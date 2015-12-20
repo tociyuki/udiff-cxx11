@@ -3,24 +3,16 @@
 #include <iostream>
 #include "unified.hpp"
 
-// working data for unified output.
-struct linemark_type {
-    bool mark;
-    int ap;
-    int bp;
-    linemark_type () : mark (false), ap (0), bp (0) {}
-};
-
 // unified output
 struct unified_impl {
     unified_type& face;
 
     unified_impl (unified_type& a) : face (a) {}
 
-    bool mark_lines (std::vector<diff_type> const& change, std::vector<linemark_type>& unify);
-    void print_allhunk (std::vector<diff_type> const& change, std::vector<linemark_type> const& unify);
+    void print_allhunk (std::vector<diff_type> const& change);
 private:
-    void print_hunk_stuff (std::vector<diff_type> const& change, std::vector<linemark_type> const& unify, int const hunk_begin, int const hunk_end);
+    void print_heading ();
+    void print_hunk_stuff (int const a0, int const a1, int const b0, int const b1);
     void print_hunk_content (std::vector<diff_type> const& change, int const hunk_begin, int const hunk_end);
 
     void diff_word (std::vector<diff_type> const& change_coarse,
@@ -75,77 +67,85 @@ void unified_type::ignore_space_change (text_type& a)
 void
 unified_type::print (std::vector<diff_type> const& change)
 {
-    std::vector<linemark_type> linemark (change.size ());
     unified_impl impl (*this);
-    if (impl.mark_lines (change, linemark))
-        impl.print_allhunk (change, linemark);
-}
-
-// mark for print lines by unified style
-bool
-unified_impl::mark_lines (std::vector<diff_type> const& change, std::vector<linemark_type>& linemark)
-{
-    int a0 = 0, b0 = 0;
-    int changed = false;
-    for (int i = 0; i < change.size (); ++i) {
-        if (INSERT != change[i].operation)
-            ++a0;
-        if (DELETE != change[i].operation)
-            ++b0;
-        linemark[i].ap = a0;
-        linemark[i].bp = b0;
-        if (EQUAL != change[i].operation) {
-            changed = true;
-            for (int j = i - face.context; j <= i + face.context; ++j) {
-                if (0 <= j && j < linemark.size ())
-                    linemark[j].mark = true;
-            }
-        }
-    }
-    return changed;
+    impl.print_allhunk (change);
 }
 
 // print all hunk.
 void
-unified_impl::print_allhunk (std::vector<diff_type> const& change, std::vector<linemark_type> const& linemark)
+unified_impl::print_allhunk (std::vector<diff_type> const& change)
 {
-    std::cout << face.sfile << "--- " << face.oldfile << face.efile << std::endl;
-    std::cout << face.sfile << "+++ " << face.newfile << face.efile << std::endl;
-    int hunk_begin = 0;
-    bool hunk = false;
-    for (int k = 0; k <= linemark.size (); ++k) {
-        bool mark = k == linemark.size () ? false : linemark[k].mark;
-        if (mark && ! hunk) {
-            hunk_begin = k;
-            hunk = true;
+    int a0 = 0, a1 = 0, b0 = 0, b1 = 0;
+    int h0 = 0, h1 = 0;
+    int nhunk = 0;
+    int state = 1;
+    for (int k = 0; k <= change.size (); ++k) {
+        operation_type op = k == change.size () ? EQUAL : change[k].operation;
+        if (EQUAL != op) {
+            if (1 == state) {
+                if (h0 < k - face.context)
+                    h0 = k - face.context;
+                a0 = -1, b0 = -1;
+                if (k - h0 > 0) {
+                    a0 = a1 - k + h0 + 1;
+                    b0 = b1 - k + h0 + 1;
+                }
+                state = 2;
+            }
+            h1 = k + 1;
         }
-        else if (hunk && ! mark) {
-            print_hunk_stuff (change, linemark, hunk_begin, k);
-            print_hunk_content (change, hunk_begin, k);
-            hunk = false;
+        else if (2 == state && (k - h1 >= 2 * face.context || k == change.size ())) {
+            h1 += face.context;
+            if (h1 > change.size ())
+                h1 = change.size ();
+            if (++nhunk == 1)
+                print_heading ();
+            print_hunk_stuff (a0, a1 - k + h1, b0, b1 - k + h1);
+            print_hunk_content (change, h0, h1);
+            h0 = h1;
+            state = 1;
+        }
+        if (INSERT != op) {
+            ++a1;
+            if (a0 < 0)
+                a0 = a1;
+        }
+        if (DELETE != op) {
+            ++b1;
+            if (b0 < 0)
+                b0 = b1;
         }
     }
 }
 
+// print file heading
+void
+unified_impl::print_heading ()
+{
+    std::cout << face.sfile << "--- " << face.oldfile << face.efile << std::endl;
+    std::cout << face.sfile << "+++ " << face.newfile << face.efile << std::endl;
+}
+
 // print single hunk stuff
 void
-unified_impl::print_hunk_stuff (std::vector<diff_type> const& change, std::vector<linemark_type> const& linemark, int const hunk_begin, int const hunk_end)
+unified_impl::print_hunk_stuff (int const a0, int const a1, int const b0, int const b1)
 {
-    int a0 = -1, a1 = -1, b0 = -1, b1 = -1;
-    for (int i = hunk_begin; i < hunk_end; ++i) {
-        if (INSERT != change[i].operation) {
-            if (a0 < 0)
-                a0 = linemark[i].ap;
-            a1 = linemark[i].ap;
-        }
-        if (DELETE != change[i].operation) {
-            if (b0 < 0)
-                b0 = linemark[i].bp;
-            b1 = linemark[i].bp;
-        }
+    std::cout << face.sstuff << "@@ - ";
+    if (a0 < 0)
+        std::cout << a1 << ",0";
+    else {
+        std::cout << a0;
+        if (a1 > a0)
+            std::cout << "," << a1 - a0 + 1;
     }
-    std::cout << face.sstuff << "@@ -" << a0 << "," << a1 - a0 + 1
-        << " +" << b0 << "," << b1 - b0 + 1 << " @@" << face.estuff << std::endl;
+    if (b0 < 0)
+        std::cout << " +" << b1 << ",0";
+    else {
+        std::cout << " +" << b0;
+        if (b1 > b0)
+            std::cout << "," << b1 - b0 + 1;
+    }
+    std::cout << " @@" << face.estuff << std::endl;
 }
 
 // print single hunk content
